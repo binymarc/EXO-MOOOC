@@ -1,0 +1,33 @@
+---
+title: "Your title"
+author: "Your name"
+date: "Today's date"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Some explanations
+
+This is an R Markdown document that you can easily export to HTML, PDF, and MS Word formats. For more information on R Markdown, see <http://rmarkdown.rstudio.com>.
+
+When you click on the button **Knit**, the document will be compiled in order to re-execute the R code and to include the results into the final document. As we have shown in the video, R code is inserted as follows:
+
+```{r cars}
+summary(cars)
+```
+
+It is also straightforward to include figures. For example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note the parameter `echo = FALSE` that indicates that the code will not appear in the final version of the document. We recommend not to use this parameter in the context of this MOOC, because we want your data analyses to be perfectly transparent and reproducible.
+
+Since the results are not stored in Rmd files, you should generate an HTML or PDF version of your exercises and commit them. Otherwise reading and checking your analysis will be difficult for anyone else but you.
+
+Now it's your turn! You can delete all this information and replace it by your computational document.
