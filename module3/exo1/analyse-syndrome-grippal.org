@@ -16,9 +16,9 @@
 
 Pour exécuter le code de cette analyse, il faut disposer des logiciels suivants:
 
-** Emacs 25 ou 26
-Une version plus ancienne d'Emacs devrait suffire, mais en ce cas il est prudent d'installer une version récente (9.x) d'org-mode.
-** Python 3.6
+** Emacs 25 ou plus
+Une version plus ancienne d'Emacs devrait suffire. Pour une version antérieure à 26, il faut installer une version récente (9.x) d'org-mode.
+** Python 3.6 ou plus
 Nous utilisons le traitement de dates en format ISO 8601, qui a été implémenté en Python seulement avec la version 3.6.
 
 #+BEGIN_SRC python :results output
@@ -42,11 +42,11 @@ Nous n'utilisons que des fonctionnalités de base du langage R, une version ant�
 
 * Préparation des données
 
-Les données de l'incidence du syndrome grippal sont disponibles du site Web du [[http://www.sentiweb.fr/][Réseau Sentinelles]]. Nous les récupérons en format CSV dont chaque ligne correspond à une semaine de la période demandée. Les dates de départ et de fin sont codées dans l'URL: "wstart=198501" pour semaine 1 de l'année 1985 et "wend=201730" pour semaine 30 de l'année 2017. L'URL complet est:
+Les données de l'incidence du syndrome grippal sont disponibles du site Web du [[http://www.sentiweb.fr/][Réseau Sentinelles]]. Nous les récupérons sous forme d'un fichier en format CSV dont chaque ligne correspond à une semaine de la période d'observation. Nous téléchargeons toujours le jeu de données complet (rien d'autre n'est proposé), qui commence en 1984 et se termine avec une semaine récente. L'URL est:
 #+NAME: data-url
-http://websenti.u707.jussieu.fr/sentiweb/api/data/rest/getIncidenceFlat?indicator=3&wstart=198501&wend=201730&geo=PAY1&$format=csv
+http://www.sentiweb.fr/datasets/incidence-PAY-3.csv
 
-Voici l'explication des colonnes donnée sur le site d'origine:
+Voici l'explication des colonnes donnée sur [[https://ns.sentiweb.fr/incidence/csv-schema-v1.json][le site d'origine:]]
 
 | Nom de colonne | Libellé de colonne                                                                                                                |
 |----------------+-----------------------------------------------------------------------------------------------------------------------------------|
@@ -61,7 +61,7 @@ Voici l'explication des colonnes donnée sur le site d'origine:
 | ~geo_insee~  | Code de la zone géographique concernée (Code INSEE) http://www.insee.fr/fr/methodes/nomenclatures/cog/                            |
 | ~geo_name~   | Libellé de la zone géographique (ce libellé peut être modifié sans préavis)                                                       |
 
-L'indication d'une semaine calendaire en format [[https://en.wikipedia.org/wiki/ISO_8601][ISO-8601]] est populaire en Europe, mais peu utilisée aux Etats-Unis. Ceci explique peut-être que peu de logiciels savent gérer ce format. Le langage Python le fait depuis la version 3.6. Nous utilisons donc ce langage pour la préparation de nos données.
+L'indication d'une semaine calendaire en format [[https://en.wikipedia.org/wiki/ISO_8601][ISO-8601]] est populaire en Europe, mais peu utilisée aux Etats-Unis. Ceci explique peut-être que peu de logiciels savent gérer ce format. Le langage Python le fait depuis la version 3.6. Nous utilisons donc ce langage pour la préparation de nos données, ce qui a l'avantage de ne nécessiter aucune bibliothèque supplémentaire. (Note: nous expliquerons dans le module 4 pourquoi il est avantageux pour la réproductibilité de se limiter à un minimum de bibliothèques.)
 
 ** Téléchargement
 Après avoir téléchargé les données, nous commençons par l'extraction des données qui nous intéressent. D'abord nous découpons le contenu du fichier en lignes, dont nous jetons la première qui ne contient qu'un commentaire. Les autres lignes sont découpées en colonnes.
@@ -70,7 +70,7 @@ Après avoir téléchargé les données, nous commençons par l'extraction des d
 from urllib.request import urlopen
 
 data = urlopen(data_url).read()
-lines = data.decode('ascii').strip().split('\n')
+lines = data.decode('latin-1').strip().split('\n')
 data_lines = lines[1:]
 table = [line.split(',') for line in data_lines]
 #+END_SRC
@@ -80,70 +80,82 @@ Regardons ce que nous avons obtenu:
 table[:5]
 #+END_SRC
 
+** Recherche de données manquantes
+Il y a malheureusement beaucoup de façon d'indiquer l'absence d'un point de données. Nous testons ici seulement pour la présence de champs vides. Il faudrait aussi rechercher des valeurs non-numériques dans les colonnes à priori numériques. Nous ne le faisons pas ici, mais une vérification ultérieure capterait des telles anomalies.
+
+Nous construisons un nouveau jeu de données sans les lignes qui contiennent des champs vides. Nous affichons ces lignes pour en garder une trace.
+#+BEGIN_SRC python :results output
+valid_table = []
+for row in table:
+    missing = any([column == '' for column in row])
+    if missing:
+        print(row)
+    else:
+        valid_table.append(row)
+#+END_SRC
+
 ** Extraction des colonnes utilisées
 Il y a deux colonnes qui nous intéressent: la première (~"week"~) et la troisième (~"inc"~). Nous vérifions leurs noms dans l'en-tête, que nous effaçons par la suite. Enfin, nous créons un tableau avec les deux colonnes pour le traitement suivant.
 #+BEGIN_SRC python :results silent
-week = [row[0] for row in table]
+week = [row[0] for row in valid_table]
 assert week[0] == 'week'
 del week[0]
-inc = [row[2] for row in table]
+inc = [row[2] for row in valid_table]
 assert inc[0] == 'inc
 del inc[0]
-raw_data = list(zip(week, inc))
+data = list(zip(week, inc))
 #+END_SRC
 
 Regardons les premières et les dernières lignes. Nous insérons ~None~ pour indiquer à org-mode la séparation entre les trois sections du tableau: en-tête, début des données, fin des données.
 #+BEGIN_SRC python :results value
-[('week', 'inc'), None] + raw_data[:5] + [None] + raw_data[-5:]
+[('week', 'inc'), None] + data[:5] + [None] + data[-5:]
 #+END_SRC
 
 ** Vérification
 Il est toujours prudent de vérifier si les données semblent crédibles. Nous savons que les semaines sont données par six chiffres (quatre pour l'année et deux pour la semaine), et que les incidences sont des nombres entiers positifs.
 #+BEGIN_SRC python :results output
-for week, inc in raw_data:
+for week, inc in data:
     if len(week) != 6 or not week.isdigit():
         print("Valeur suspecte dans la colonne 'week': ", (week, inc))
     if not inc.isdigit():
         print("Valeur suspecte dans la colonne 'inc': ", (week, inc))
 #+END_SRC
 
-La vérification a mis en évidence un point manquant dans le jeux de données. Nous l'éliminons, ce qui n'a pas d'impact fort sur notre analyse qui est assez simple.
-#+BEGIN_SRC python :results silent
-valid_data = [record for record in raw_data if record[1] != '-']
-#+END_SRC
+Pas de problème !
 
 ** Conversions
 Pour faciliter les traitements suivants, nous remplaçons les numéros de semaine ISO par les dates qui correspondent aux lundis. A cette occasion, nous trions aussi les données par la date, et nous transformons les incidences en nombres entiers.
 
 #+BEGIN_SRC python :results silent
 import datetime
-data = [(datetime.datetime.strptime(year_and_week + ":1" , '%G%V:%u').date(),
-         int(inc))
-        for year_and_week, inc in valid_data]
-data.sort(key = lambda record: record[0])
+converted_data = [(datetime.datetime.strptime(year_and_week + ":1" , '%G%V:%u').date(),
+                  int(inc))
+                  for year_and_week, inc in data]
+converted_data.sort(key = lambda record: record[0])
 #+END_SRC
 
 Regardons de nouveau les premières et les dernières lignes:
 #+BEGIN_SRC python :results value
-str_data = [(str(date), str(inc)) for date, inc in data]
+str_data = [(str(date), str(inc)) for date, inc in converted_data]
 [('date', 'inc'), None] + str_data[:5] + [None] + str_data[-5:]
 #+END_SRC
 
 ** Vérification des dates
 Nous faisons encore une vérification: nos dates doivent être séparées d'exactement une semaine, sauf autour du point manquant.
 #+BEGIN_SRC python :results output
-dates = [date for date, _ in data]
+dates = [date for date, _ in converted_data]
 for date1, date2 in zip(dates[:-1], dates[1:]):
     if date2-date1 != datetime.timedelta(weeks=1):
         print(f"Il y a {date2-date1} entre {date1} et {date2}")
 #+END_SRC
 
 ** Passage Python -> R
-Nous passons au langage R pour inspecter nos données. Nous utilisons le mécanisme d'échange de données proposé par org-mode, ce qui nécessite un peu de code Python pour transformer les données dans le bon format.
+Nous passons au langage R pour inspecter nos données, parce que l'analyse et la préparation de graphiques sont plus concises en R, sans nécessiter aucune bibliothèque supplémentaire.
 
+Nous utilisons le mécanisme d'échange de données proposé par org-mode, ce qui nécessite un peu de code Python pour transformer les données dans le bon format.
 #+NAME: data-for-R
 #+BEGIN_SRC python :results silent
-[('date', 'inc'), None] + [(str(date), inc) for date, inc in data]
+[('date', 'inc'), None] + [(str(date), inc) for date, inc in converted_data]
 #+END_SRC
 
 En R, les données arrivent sous forme d'un data frame, mais il faut encore convertir les dates, qui arrivent comme chaînes de caractères.
@@ -178,9 +190,9 @@ pic_annuel = function(annee) {
       }
 #+END_SRC
 
-Nous devons aussi faire attention aux premières et dernières années de notre jeux de données. Les données commencent en janvier 1985, ce qui ne permet pas de quantifier complètement le pic attribué à cette année. Nous le supprimons donc de notre analyse. Par contre, les données se terminent en été 2017, peu avant le 1er août, ce qui nous permet d'inclure cette année dans l'analyse.
+Nous devons aussi faire attention aux premières et dernières années de notre jeux de données. Les données commencent en octobre 1984, ce qui ne permet pas de quantifier complètement le pic attribué à l'année 1985. Nous le supprimons donc de notre analyse. Pour la même raison, nous arrêtons en 2018. Nous devons attendre les données pour juillet 2019 avant d'augmenter la dernière année à 2019.
 #+BEGIN_SRC R :results silent
-annees <- 1986:2017
+annees <- 1986:2018
 #+END_SRC
 
 #+BEGIN_SRC R :results value

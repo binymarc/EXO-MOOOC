@@ -1,0 +1,165 @@
+---
+title: "Incidence of influenza-like illness in France"
+author: "Konrad Hinsen"
+output:
+  pdf_document:
+    toc: true
+  html_document:
+    toc: true
+    theme: journal
+documentclass: article
+classoption: a4paper
+header-includes:
+- \usepackage[french]{babel}
+- \usepackage[upright]{fourier}
+- \hypersetup{colorlinks=true,pagebackref=true}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data preprocessing
+
+The data on the incidence of influenza-like illness are available from the Web site of the [Réseau Sentinelles](http://www.sentiweb.fr/). We download them as a file in CSV format, in which each line corresponds to a week in the observation period. Only the complete dataset, starting in 1984 and ending with a recent week, is available for download. The URL is:
+```{r}
+data_url = "http://www.sentiweb.fr/datasets/incidence-PAY-3.csv"
+```
+
+This is the documentation of the data from [the download site](https://ns.sentiweb.fr/incidence/csv-schema-v1.json):
+
+| Column name  | Description                                                                                                               |
+|--------------+---------------------------------------------------------------------------------------------------------------------------|
+| `week`       | ISO8601 Yearweek number as numeric (year*100 + week nubmer)                                                               |
+| `indicator`  | Unique identifier of the indicator, see metadata document https://www.sentiweb.fr/meta.json                               |
+| `inc`        | Estimated incidence value for the time step, in the geographic level                                                      |
+| `inc_low`    | Lower bound of the estimated incidence 95% Confidence Interval                                                            |
+| `inc_up`     | Upper bound of the estimated incidence 95% Confidence Interval                                                            |
+| `inc100`     | Estimated rate incidence per 100,000 inhabitants                                                                          |
+| `inc100_low` | Lower bound of the estimated incidence 95% Confidence Interval                                                            |
+| `inc100_up`  | Upper bound of the estimated rate incidence 95% Confidence Interval                                                       |
+| `geo_insee`  | Identifier of the geographic area, from INSEE https://www.insee.fr                                                        |
+| `geo_name`   | Geographic label of the area, corresponding to INSEE code. This label is not an id and is only provided for human reading |
+
+### Download
+
+The first line of the CSV file is a comment, which we ignore with `skip=1`.
+```{r}
+data = read.csv(data_url, skip=1)
+```
+
+Let's have a look at what we got:
+```{r}
+head(data)
+tail(data)
+```
+
+Are there missing data points?
+```{r}
+na_records = apply(data, 1, function (x) any(is.na(x)))
+data[na_records,]
+```
+
+The two relevant columns for us are `week` and `inc`. Let's verify their classes:
+```{r}
+class(data$week)
+class(data$inc)
+```
+Integers, fine!
+
+### Conversion of the week numbers
+
+Date handling is always a delicate subject. There are many conventions that are easily confused. Our dataset uses the [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) week number format, which is popular in Europe but less so in North America. In `R`, it is handled by the library [parsedate](https://cran.r-project.org/package=parsedate):
+
+```{r}
+library(parsedate)
+```
+
+In order to facilitate the subsequent treatment, we replace the ISO week numbers by the dates of each week's Monday. This function does it for one value:
+
+```{r}
+convert_week = function(w) {
+	ws = paste(w)
+	iso = paste0(substring(ws, 1, 4), "-W", substring(ws, 5, 6))
+	as.character(parse_iso_8601(iso))
+}
+```
+
+We apply it to all points, creating a new column `date` in our data frame:
+```{r}
+data$date = as.Date(convert_week(data$week))
+```
+
+Let's check that is has class `Date`:
+```{r}
+class(data$date)
+```
+
+The points are in inverse chronological order, so it's preferable to sort them:
+```{r}
+data = data[order(data$date),]
+```
+
+That's a good occasion for another check: our dates should be separated by exactly seven days:
+```{r}
+all(diff(data$date) == 7)
+```
+
+### Inspection
+
+Finally we can look at a plot of our data!
+```{r}
+plot(data$date, data$inc, type="l", xlab="Date", ylab="Weekly incidence")
+```
+
+A zoom on the last few years makes the peaks in winter stand out more clearly.
+```{r}
+with(tail(data, 200), plot(date, inc, type="l", xlab="Date", ylab="Weekly incidence"))
+```
+
+## Annual incidence
+
+### Computation
+
+Since the peaks of the epidemic happen in winter, near the transition between calendar years, we define the reference period for the annual incidence from August 1st of year $N$ to August 1st of year $N+1$. We label this period as year $N+1$ because the peak is always located in year $N+1$. The very low incidence in summer ensures that the arbitrariness of the choice of reference period has no impact on our conclusions.
+
+The argument `na.rm=True` in the sum indicates that missing data points are removed. This is a reasonable choice since there is only one missing point, whose impact cannot be very strong.
+```{r}
+yearly_peak = function(year) {
+      debut = paste0(year-1,"-08-01")
+      fin = paste0(year,"-08-01")
+      semaines = data$date > debut & data$date <= fin
+      sum(data$inc[semaines], na.rm=TRUE)
+      }
+```
+
+We must also be careful with the first and last years of the dataset. The data start in October 1984, meaning that we don't have all the data for the peak attributed to the year 1985. We therefore exclude it from the analysis. For the same reason, we define 2018 as the final year. We can increase this value to 2019 only when all data up to July 2019 is available.
+```{r}
+years = 1986:2018
+```
+
+We make a new data frame for the annual incidence, applying the function `yearly_peak` to each year:
+```{r}
+annnual_inc = data.frame(year = years,
+                          incidence = sapply(years, yearly_peak))
+head(annnual_inc)
+```
+
+### Inspection
+
+A plot of the annual incidences:
+```{r}
+plot(annnual_inc, type="p", xlab="Année", ylab="Annual incidence")
+```
+
+### Identification of the strongest epidemics
+
+A list sorted by decreasing annual incidence makes it easy to find the most important ones:
+```{r}
+head(annnual_inc[order(-annnual_inc$incidence),])
+```
+
+Finally, a histogram clearly shows the few very strong epidemics, which affect about 10% of the French population, but are rare: there were three of them in the course of 35 years. The typical epidemic affects only half as many people.
+```{r}
+hist(annnual_inc$incidence, breaks=10, xlab="Annual incidence", ylab="Number of observations", main="")
+```
