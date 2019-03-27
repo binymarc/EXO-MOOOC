@@ -1,0 +1,201 @@
+#+TITLE: Analysis of the risk of failure of the O-rings on the Challenger shuttle
+#+AUTHOR: Arnaud Legrand
+#+LANGUAGE: en
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage[a4paper,margin=.8in]{geometry}
+#+LATEX_HEADER: \usepackage[french]{babel}
+
+# #+PROPERTY: header-args  :session  :exports both
+
+On January 27, 1986, the day before the takeoff of the shuttle /Challenger/, had
+a three-hour teleconference was held between 
+Morton Thiokol (the manufacturer of one of the engines) and NASA. The
+discussion focused on the consequences of the
+temperature at take-off of 31°F (just below
+0°C) for the success of the flight and in particular on the performance of the
+O-rings used in the engines. Indeed, no test
+had been performed at this temperature.
+
+The following study takes up some of the analyses carried out that
+night with the objective of assessing the potential influence of
+the temperature and pressure to which the O-rings are subjected
+on their probability of malfunction. Our starting point is 
+the results of the experiments carried out by NASA engineers
+during the six years preceding the launch of the shuttle
+Challenger.
+
+* Loading the data
+We start by loading this data:
+#+begin_src R :results output :session *R* :exports both
+data = read.csv("shuttle.csv",header=T)
+data
+#+end_src
+
+#+RESULTS:
+#+begin_example
+        Date Count Temperature Pressure Malfunction
+1    4/12/81     6          66       50           0
+2   11/12/81     6          70       50           1
+3    3/22/82     6          69       50           0
+4   11/11/82     6          68       50           0
+5    4/04/83     6          67       50           0
+6    6/18/82     6          72       50           0
+7    8/30/83     6          73      100           0
+8   11/28/83     6          70      100           0
+9    2/03/84     6          57      200           1
+10   4/06/84     6          63      200           1
+11   8/30/84     6          70      200           1
+12  10/05/84     6          78      200           0
+13  11/08/84     6          67      200           0
+14   1/24/85     6          53      200           2
+15   4/12/85     6          67      200           0
+16   4/29/85     6          75      200           0
+17   6/17/85     6          70      200           0
+18 7/2903/85     6          81      200           0
+19   8/27/85     6          76      200           0
+20  10/03/85     6          79      200           0
+21  10/30/85     6          75      200           2
+22  11/26/85     6          76      200           0
+23   1/12/86     6          58      200           1
+#+end_example
+
+The data set shows us the date of each test, the number of O-rings
+(there are 6 on the main launcher), the
+temperature (in Fahrenheit) and pressure (in psi), and finally the
+number of identified malfunctions.
+
+* Graphical inspection
+Flights without incidents do not provide any information
+on the influence of temperature or pressure on malfunction.
+We thus focus on the experiments in which at least one O-ring was defective.
+
+#+begin_src R :results output :session *R* :exports both
+data = data[data$Malfunction>0,]
+data
+#+end_src
+
+#+RESULTS:
+:        Date Count Temperature Pressure Malfunction
+: 2  11/12/81     6          70       50           1
+: 9   2/03/84     6          57      200           1
+: 10  4/06/84     6          63      200           1
+: 11  8/30/84     6          70      200           1
+: 14  1/24/85     6          53      200           2
+: 21 10/30/85     6          75      200           2
+: 23  1/12/86     6          58      200           1
+
+We have a high temperature variability but
+the pressure is almost always 200, which should
+simplify the analysis.
+
+How does the frequency of failure vary with temperature?
+#+begin_src R :results output graphics :file "freq_temp.png" :exports both :width 600 :height 400 :session *R* 
+plot(data=data, Malfunction/Count ~ Temperature, ylim=c(0,1))
+#+end_src
+
+#+RESULTS:
+[[file:freq_temp.png]]
+
+At first glance, the dependence does not look very important, but let's try to
+estimate the impact of temperature $t$ on the probability of O-ring malfunction.
+
+* Estimation of the temperature influence
+
+Suppose that each of the six O-rings is damaged with the same
+probability and independently of the others and that this probability
+depends only on the temperature. If $p(t)$ is this probability, the
+number $D$ of malfunctioning O-rings during a flight at
+temperature $t$ follows a binomial law with parameters $n=6$ and
+$p=p(t)$. To link $p(t)$ to $t$, we will therefore perform a
+logistic regression.
+
+#+begin_src R :results output :session *R* :exports both
+logistic_reg = glm(data=data, Malfunction/Count ~ Temperature, weights=Count, 
+                   family=binomial(link='logit'))
+summary(logistic_reg)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+Call:
+glm(formula = Malfunction/Count ~ Temperature, family = binomial(link = "logit"), 
+    data = data, weights = Count)
+
+Deviance Residuals: 
+      2        9       10       11       14       21       23  
+-0.3015  -0.2836  -0.2919  -0.3015   0.6891   0.6560  -0.2850  
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)
+(Intercept) -1.389528   3.195752  -0.435    0.664
+Temperature  0.001416   0.049773   0.028    0.977
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 1.3347  on 6  degrees of freedom
+Residual deviance: 1.3339  on 5  degrees of freedom
+AIC: 18.894
+
+Number of Fisher Scoring iterations: 4
+#+end_example
+
+The most likely estimator of the temperature parameter is 0.001416
+and the standard error of this estimator is 0.049, in other words we
+cannot distinguish any particular impact and we must take our
+estimates with caution.
+
+* Estimation of the probability of O-ring malfunction
+The expected temperature on the take-off day is 31°F. Let's try to
+estimate the probability of O-ring malfunction at
+this temperature from the model we just built:
+
+#+begin_src R :results output graphics :file "proba_estimate.png" :exports both :width 600 :height 400 :session *R* 
+# shuttle=shuttle[shuttle$r!=0,] 
+tempv = seq(from=30, to=90, by = .5)
+rmv <- predict(logistic_reg,list(Temperature=tempv),type="response")
+plot(tempv,rmv,type="l",ylim=c(0,1))
+points(data=data, Malfunction/Count ~ Temperature)
+#+end_src
+
+#+RESULTS:
+[[file:proba_estimate.png]]
+
+As expected from the initial data, the
+temperature has no significant impact on the probability of failure of the
+O-rings. It will be about 0.2, as in the tests
+where we had a failure of at least one joint. Let's get back to the initial dataset to estimate the probability of failure:
+
+#+begin_src R :results output :session *R* :exports both
+data_full = read.csv("shuttle.csv",header=T)
+sum(data_full$Malfunction)/sum(data_full$Count)
+#+end_src
+
+#+RESULTS:
+: [1] 0.06521739
+
+This probability is thus about $p=0.065$. Knowing that there is
+a primary and a secondary O-ring on each of the three parts of the
+launcher, the probability of failure of both joints of a launcher
+is $p^2 \approx 0.00425$. The probability of failure of any one of the
+launchers is $1-(1-p^2)^3 \approx 1.2%$.  That would really be
+bad luck.... Everything is under control, so the takeoff can happen
+tomorrow as planned.
+
+But the next day, the Challenger shuttle exploded and took away
+with her the seven crew members. The public was shocked and in
+the subsequent investigation, the reliability of the
+O-rings was questioned. Beyond the internal communication problems
+of NASA, which have a lot to do with this fiasco, the previous analysis
+includes (at least) a small problem.... Can you find it?
+You are free to modify this analysis and to look at this dataset
+from all angles in order to to explain what's wrong.

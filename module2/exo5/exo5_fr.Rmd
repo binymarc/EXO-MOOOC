@@ -5,7 +5,7 @@ date: "28 juin 2018"
 output: html_document
 ---
 
-Le 27 Janvier 1986, veille du décollage de la navette /Challenger/, eu
+Le 27 Janvier 1986, veille du décollage de la navette _Challenger_, eu
 lieu une télé-conférence de trois heures entre les ingénieurs de la
 Morton Thiokol (constructeur d'un des moteurs) et de la NASA. La
 discussion portait principalement sur les conséquences de la
@@ -93,12 +93,25 @@ plot(tempv,rmv,type="l",ylim=c(0,1))
 points(data=data, Malfunction/Count ~ Temperature)
 ```
 
-La probabilité d'échec des joints toriques est donc d'environ 0.2
-(comme dans les essais précédents) et comme on pouvait s'attendre au
-vu des données initiales, la température n'a pas d'impact notable. La
-probabilité que tous les joints toriques dysfonctionnent est de
-$0.2^6 \approx 6.4\times10^{-5}$. Tout est sous contrôle, le décollage
-peut donc avoir lieu demain comme prévu.
+Comme on pouvait s'attendre au vu des données initiales, la
+température n'a pas d'impact notable sur la probabilité d'échec des
+joints toriques. Elle sera d'environ 0.2, comme dans les essais
+précédents où nous il y a eu défaillance d'au moins un joint. Revenons
+à l'ensemble des données initiales pour estimer la probabilité de
+défaillance d'un joint:
+
+```{r}
+data_full = read.csv("shuttle.csv",header=T)
+sum(data_full$Malfunction)/sum(data_full$Count)
+```
+
+Cette probabilité est donc d'environ $p=0.065$, sachant qu'il existe
+un joint primaire un joint secondaire sur chacune des trois parties du
+lançeur, la probabilité de défaillance des deux joints d'un lançeur
+est de $p^2 \approx 0.00425$. La probabilité de défaillance d'un des
+lançeur est donc de $1-(1-p^2)^3 \approx 1.2%$.  Ça serait vraiment
+pas de chance... Tout est sous contrôle, le décollage peut donc avoir
+lieu demain comme prévu.
 
 Seulement, le lendemain, la navette Challenger explosera et emportera
 avec elle ses sept membres d'équipages. L'opinion publique est
@@ -109,4 +122,3 @@ fiasco, l'analyse précédente comporte (au moins) un petit
 problème... Saurez-vous le trouver ? Vous êtes libre de modifier cette
 analyse et de regarder ce jeu de données sous tous les angles afin
 d'expliquer ce qui ne va pas.
-

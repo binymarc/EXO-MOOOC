@@ -1,6 +1,6 @@
 #+TITLE: Analysis of the risk of failure of the O-rings on the Challenger shuttle
 #+AUTHOR: Arnaud Legrand
-#+LANGUAGE: fr
+#+LANGUAGE: en
 
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
@@ -202,7 +202,7 @@ This probability is thus about $p=0.065$. Knowing that there is
 a primary and a secondary O-ring on each of the three parts of the
 launcher, the probability of failure of both joints of a launcher
 is $p^2 \approx 0.00425$. The probability of failure of any one of the
-launchers is $1-(1-p^2)^3 \approximately 1.2%$.  That would really be
+launchers is $1-(1-p^2)^3 \approx 1.2%$.  That would really be
 bad luck.... Everything is under control, so the takeoff can happen
 tomorrow as planned.
 
