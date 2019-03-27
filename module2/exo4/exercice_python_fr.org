@@ -3,7 +3,6 @@
 #+DATE:   La date du jour
 #+LANGUAGE: fr
 # #+PROPERTY: header-args :eval never-export
-# #### :session  :exports both
 
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
@@ -85,14 +84,10 @@ org. C'est un fichier ordinaire, ici nommé ~cosxsx.png~. N'oubliez pas
 de le committer si vous voulez que votre analyse soit lisible et
 compréhensible sur GitLab.
 
-Enfin, pour les prochains exercices, nous ne vous fournirons pas
-forcément de fichier de départ, ça sera à vous de le créer, par
-exemple en repartant de ce document et de le commiter vers
-gitlab. N'oubliez pas que nous vous fournissons dans les ressources de
+Enfin, n'oubliez pas que nous vous fournissons dans les ressources de
 ce MOOC une configuration avec un certain nombre de raccourcis
 claviers permettant de créer rapidement les blocs de code python (en
 faisant ~<p~, ~<P~ ou ~<PP~ suivi de ~Tab~).
 
 Maintenant, à vous de jouer! Vous pouvez effacer toutes ces
-informations pour essayer de reproduire le document sur le calcul de
-$\pi$.
+informations et les remplacer par votre document computationnel.
