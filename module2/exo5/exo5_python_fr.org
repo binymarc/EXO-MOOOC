@@ -175,7 +175,7 @@ cette température à partir du modèle que nous venons de construire:
 import matplotlib.pyplot as plt
 
 data_pred = pd.DataFrame({'Temperature': np.linspace(start=30, stop=90, num=121), 'Intercept': 1})
-data_pred['Frequency'] = logmodel.predict(data_pred)
+data_pred['Frequency'] = logmodel.predict(data_pred[['Intercept','Temperature']])
 data_pred.plot(x="Temperature",y="Frequency",kind="line",ylim=[0,1])
 plt.scatter(x=data["Temperature"],y=data["Frequency"])
 plt.grid(True)
