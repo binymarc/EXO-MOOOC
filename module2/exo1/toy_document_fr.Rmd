@@ -1,6 +1,6 @@
 ---
 title: "Votre titre"
-author: "Votre nom"
+author: "BINI MARC"
 date: "La date du jour"
 output: html_document
 ---
